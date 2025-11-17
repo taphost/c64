@@ -65,7 +65,8 @@ This file set is designed for:
 - Minimal token usage
 - Straightforward translation between modern concepts and C64 constraints
 
+## License
+
+MIT License - See source file for details.
+
 ---
-
-Initial English documentation version.
-
