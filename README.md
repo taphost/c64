@@ -11,7 +11,7 @@ C64LLM/
  ├── SID.md            ← Note/frequency mapping for the SID chip
  └── docs/
       ├── c64prg.txt   ← Commodore 64 Programmer’s Reference Guide (full text)
-      └── TOC.md       ← Quick index for consulting the PRG
+      └── TOC.md       ← Quick index for consulting the c64prg.txt
 ```
 
 ## Purpose
@@ -20,14 +20,14 @@ The project provides the LLM with:
 - **API.md** as the primary reference for rules, constraints, and coding style.
 - **SID.md** as a guide to translate musical notes and frequencies into values usable by the **SID** sound chip.
 - **docs/c64prg.txt** as the full technical foundation, derived from the *Commodore 64 Programmer’s Reference Guide*.
-- **docs/TOC.md** as an index allowing the LLM to navigate the PRG without exceeding context‑window limits.
+- **docs/TOC.md** as an index allowing the LLM to navigate the c64prg.txt without exceeding context‑window limits.
 
 ## Why TOC.md
 
 LLMs have strict limits on context size and tokens. Therefore:
 - The **c64prg.txt** file is not provided entirely to the LLM.
 - Instead, **TOC.md** is supplied to indicate which sections to consult.
-- The LLM can then request specific portions of PRG.txt as needed.
+- The LLM can then request specific portions of c64prg.txt as needed.
 
 ## How to Use the Files
 
@@ -55,7 +55,7 @@ Provides:
 - A fast navigation index
 - Pointers to relevant sections
 
-The LLM may request: "Give me section XYZ of PRG.txt".
+The LLM may request: "Give me section XYZ of c64prg.txt".
 
 ## Intended Use
 
