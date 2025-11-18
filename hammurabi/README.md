@@ -124,5 +124,4 @@ Correzioni applicate per gameplay funzionale:
 ## Crediti
 
 - Originale: David H. Ahl (Creative Computing, 1973)
-- Conversione/Traduzione: 2024
 - Basato su: BASIC Computer Games (1978)
