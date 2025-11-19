@@ -2,7 +2,7 @@
 
 ## Overview
 
-The VIC-II chip controls all video output: text, bitmaps, sprites, colors, and scrolling. Memory-mapped registers at $D000-$D02E ($D3FF mirrors).
+The VIC-II chip controls all video output: text, bitmaps, sprites, colors, and scrolling. Memory-mapped registers at $D000-$D02E ($D3FF mirrors). This reference synthesizes the Commodore 64 Programmer's Reference Guide (Graphics chapter + Appendices B/G) and Mapping the Commodore 64 (Chapters 3 & 6) so both official sources are acknowledged.
 
 **Capabilities:**
 - 40×25 text mode (320×200 pixels)
@@ -140,6 +140,8 @@ VIC-II sees only 16KB at a time. Select bank via CIA2 $DD00 bits 0-1:
 10 POKE 56576,(PEEK(56576) AND 252) OR 2
 ```
 
+`POKE 56576` changes only the VIC bank select bits inside CIA2; it does not interact with the `/GAME` or `/EXROM` cartridge lines. Use this bank logic when relocating screens or character sets so that the VIC and 6510 reference the same 16KB block (Mapping Chapter 6).
+
 ## Character Mode (Text)
 
 ### Standard Character Mode
@@ -154,6 +156,19 @@ VIC-II sees only 16KB at a time. Select bank via CIA2 $DD00 bits 0-1:
 10 POKE 1024,1: REM 'A' at top-left (screen code 1)
 20 POKE 55296,2: REM Red color
 ```
+
+**Background selection rules:**
+1. Screen codes 0-63 (standard alphanumerics) use Background Color 0 ($D021).
+2. Shifted characters 64-127 use Background Color 1 ($D022).
+3. Reversed characters 128-191 pick Background Color 2 ($D023).
+4. Codes 192-255 draw from Background Color 3 ($D024).
+5. Foreground is always the nybble stored in color RAM at $D800-$DBE7. Update color RAM after moving a character; otherwise the old color stays.
+
+### Sprite pointers and relocation traps
+
+The VIC screen block at $0400-$07FF contains the video matrix plus the sprite pointers in its last eight bytes ($07F8-$07FF). Each pointer is a block number; multiply it by 64 to locate the sprite shape data (value 11 points to $2C0-$31F). If you relocate the screen or change VIC banks, reinitialize these values; otherwise sprites will show data from whatever happens to sit at the new memory.
+
+Color RAM ($D800-$DBE7) stays at the same physical location, so after moving the screen you must repopulate color RAM manually or characters keep their previous color values (Mapping cap. 4).
 
 ### Multicolor Character Mode
 

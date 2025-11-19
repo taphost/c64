@@ -1,7 +1,9 @@
 # SID 6581 Complete Programming Guide
 
 ## Overview
-The SID (Sound Interface Device) chip provides 3-voice polyphonic synthesizer with programmable ADSR envelope, multiple waveforms, filters, and ring modulation. All control via POKE to memory-mapped registers at $D400 (54272 decimal).
+The SID (Sound Interface Device) chip provides a 3-voice polyphonic synthesizer with programmable ADSR envelope, multiple waveforms, filters, and ring modulation. All control uses POKE to the memory-mapped registers at $D400 (54272 decimal). This guide summarizes the Commodore 64 Programmer's Reference Guide ("Programming Sound & Music" chapter and Appendix O) plus Mapping the Commodore 64 (Chapter 6) for register-level details.
+
+SID shares the I/O block with the VIC-II ($D000-$D3FF) but does not collide with color RAM: the active registers span $D400-$D41C, and $D500-$D7FF are mirrored copies. When relocating the screen or doing bulk writes into I/O space, keep clear of $D400-$D41C (Mapping Chapter 6).
 
 ## Memory Map (Base $D400 = 54272)
 
@@ -43,10 +45,12 @@ The SID (Sound Interface Device) chip provides 3-voice polyphonic synthesizer wi
   - Bit 0: Filter Voice 1
 - $D418 (54296): Mode/Volume
   - Bits 0-3: Volume (0-15)
-  - Bit 4: Low Pass filter enable
-  - Bit 5: Band Pass filter enable
-  - Bit 6: High Pass filter enable
-  - Bit 7: Voice 3 Off (disconnect from audio)
+  - Bit 4: Low-pass filter enable
+  - Bit 5: Band-pass filter enable
+  - Bit 6: High-pass filter enable
+  - Bit 7: Voice 3 off (disconnect from audio)
+
+You can enable multiple filters at once (e.g., low-pass + high-pass for a notch). Mapping Chapter 6 notes that extreme combinations can sound unpredictable, so dial in a reference tone with a single filter and then add additional filters if the effect is desirable.
 
 ### Read-Only Registers
 - $D419 (54297): Paddle X (POTX)

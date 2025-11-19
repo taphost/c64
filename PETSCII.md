@@ -4,6 +4,8 @@
 
 PETSCII (PET Standard Code of Information Interchange) is the character encoding used by Commodore 8-bit computers. Unlike ASCII, PETSCII includes extensive control codes, graphic characters, and a unique uppercase/lowercase system.
 
+The Mapping book includes a handy “Commodore 64word” table (Appendix H) that pairs the SHIFT key and Commodore logo key with BASIC keywords, e.g., SHIFT+A → `PRINT`, Commodore+A → `PRINT#`. That table is reproduced in `API.md`, but keep it in mind when you automate keystrokes or describe key combos to an LLM.
+
 **Key differences from ASCII:**
 - Codes 0-31: Control characters (colors, cursor movement, screen operations)
 - Codes 32-127: Letters, numbers, graphics (shifted vs unshifted behavior)
@@ -27,6 +29,8 @@ PETSCII (PET Standard Code of Information Interchange) is the character encoding
 ## Complete PETSCII Table (0-255)
 
 ### Control Codes (0-31)
+
+In Mapping Appendix B they use braces to describe special characters (e.g., `{DOWN}` means press the cursor down key) and underscores to mark a SHIFT (“_S_” means SHIFT+S). Use this same notation when describing PETSCII sequences to keep the instructions predictable for an LLM.
 
 | Dec | Hex | Key | Function | BASIC Usage |
 |-----|-----|-----|----------|-------------|

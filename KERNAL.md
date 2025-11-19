@@ -2,7 +2,7 @@
 
 ## Overview
 
-The KERNAL is the C64's operating system ROM ($E000-$FFFF) providing low-level I/O, memory management, and system services. Access via `SYS <address>` from BASIC or `JSR <address>` from machine language.
+The KERNAL is the C64's operating system ROM ($E000-$FFFF) providing low-level I/O, memory management, and system services. Access via `SYS <address>` from BASIC or `JSR <address>` from machine language. This reference summarizes the Commodore 64 Programmer's Reference Guide (KERNAL chapters/appendices) and Mapping the Commodore 64 (especially Chapter 7) so both canonical etexts are represented.
 
 **Key features:**
 - Device-independent I/O (tape, disk, screen, keyboard)
@@ -76,6 +76,18 @@ The KERNAL is the C64's operating system ROM ($E000-$FFFF) providing low-level I
 | $FFDE | 65502 | RDTIM | Read system clock |
 | $FFDB | 65499 | SETTIM | Set system clock |
 | $FFEA | 65514 | UDTIM | Update system clock |
+
+## Math and random support
+
+Some of the KERNAL routines used by BASIC math functions reside in the ROM banks: `POLY1` ($E043) and `POLY2` ($E059) evaluate expression series, while the `RND` sequence relies on constants at `RMULC` ($E08D) and `RADDC` ($E092) before calling `RND` ($E097). `RND(1)` always continues the same pseudo-random stream; `RND(0)` samples the free-running jiffy clock (per the Programmer's Reference Guide), so calling `RND(0)` injects fresh entropy without touching CIA timers. Mapping (cap. 7) recommends `RND(-RND(0))` if you need an additional re-seed guard, but no extra writes to Timer A are required. The `SYS` entry at $E12A saves A/X/Y/P via 780-783 ($030C-$030F) before running the target routine, so always restore the registers afterward.
+
+## I/O helper routines in ROM
+
+BASIC builds on higher-level wrappers when it needs to call the KERNAL. `CALL KERNAL I/O ROUTINES` ($E0F9) handles CIN/OUT errors plus the 512-byte RS-232 buffer allocation/CLR; `SAVE` ($E156) uses pointers at 43/45 to define save range, `VERIFY` ($E165) sets the verify flag at 10 ($0A). These routines make it possible to reuse the ROM services mentioned in the tables without reimplementing pointer adjustments manually.
+
+## Kernal patch awareness
+
+The later ROM revisions patch sections in the Kernal (see addresses $E4AD-$E4FF and $FF5B-$FF7F) to fix color-initialization and regional differences. When you rely on a specific routine, be mindful that a patched machine may redirect it; consult the patch tables if you need to set new vectors rather than calling the default entry.
 
 ## Register Conventions
 

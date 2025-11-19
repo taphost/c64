@@ -2,7 +2,7 @@
 
 ## Overview
 
-The C64 supports multiple I/O devices through logical device numbers. Access via BASIC commands (OPEN, CLOSE, PRINT#, INPUT#, GET#) or KERNAL routines.
+The C64 supports multiple I/O devices through logical device numbers. Access via BASIC commands (OPEN, CLOSE, PRINT#, INPUT#, GET#) or KERNAL routines. This summary consolidates the Commodore 64 Programmer's Reference Guide (Input/Output Guide chapter) and Mapping the Commodore 64 (Chapter 6) so both official etexts are represented.
 
 ## Device Numbers
 
@@ -15,6 +15,14 @@ The C64 supports multiple I/O devices through logical device numbers. Access via
 | 4 | Printer | Text output |
 | 8-11 | Disk drives | Floppy disk storage (8 = primary) |
 | 12-15 | Additional devices | Expansion devices |
+
+### LAT/FAT/SAT tables and keyboard buffer
+
+Locations 601-630 (`$259-$276`) host the LAT/FAT/SAT tables for logical file, device, and secondary address. Entries stay synchronized: closing a device shifts higher entries down and decrements the count at $0098; `CLALL` zeroes $0098 and clears all three tables in one go. Keyboard input uses the queue at 631-640 ($0277-$0280), whose length is tracked at $00C5 and whose pointer is $00C6. You can simulate typing by storing PETSCII characters there and updating $C6/$C5 accordingly before calling `GET#`/`INPUT`.
+
+### Bit masks for PEEK/POKE
+
+When toggling VIC, SID, CIA or serial flags, use the mask values 1,2,4,8,16,32,64,128. For example, to set bit 5: `POKE addr,PEEK(addr) OR 32`; to clear bit 5: `POKE addr,PEEK(addr) AND 223`. These values match the single-bit diagram in Mapping Chapter 6 and help you keep single-bit operations concise.
 
 ## Cassette Tape (Device 1)
 
@@ -35,10 +43,11 @@ The C64 supports multiple I/O devices through logical device numbers. Access via
 
 ### Sequential File Access
 ```basic
-10 OPEN 1,1,1,"FILENAME": REM Read mode
-20 OPEN 1,1,0,"FILENAME": REM Write mode
-30 REM Read/write with INPUT#1 or PRINT#1
-40 CLOSE 1
+10 OPEN 1,1,0,"FILENAME": REM Read tape (SA=0)
+20 OPEN 1,1,1,"FILENAME": REM Write tape (SA=1)
+30 OPEN 1,1,2,"FILENAME": REM Write + append end-of-tape marker
+40 REM Use INPUT#1 or PRINT#1 to read/write
+50 CLOSE 1
 ```
 
 **Notes:**
@@ -157,32 +166,44 @@ Common commands (via PRINT#15):
 
 ### Opening RS-232 Channel
 
-Format: `OPEN file,2,secondary,"parameters"`
+Format: `OPEN file,2,secondary,"<control><command>"`
 
-Parameters: `CHR$(baud+parity) + CHR$(control)`
+The first byte (control register) packs stop bits, word length, and baud rate:
+- Bits 0-2: Stop bits (000 = 1 stop, 001 = 1.5 stops, 010 = 2 stops)
+- Bits 5-7: Word length (00 = 8 bits, 01 = 7 bits, 10 = 6 bits, 11 = 5 bits)
+- Bits 2-4 select the baud code (full list below)
 
-**Baud rates (add to base value):**
-- 0: User-defined (based on zero-page settings)
-- 6: 300 baud
-- 7: 1200 baud
-- 8: 2400 baud
-- 10: 1200 baud (alternative)
+The second byte (command register) controls parity/duplex:
+- Bits 5-7: Parity type (000=None, 001=Odd, 011=Even, 101=Mark, 111=Space)
+- Bit 0: Duplex (0=full, 1=half)
 
-**Parity (add to baud):**
-- 0: No parity
-- 32: Even parity
-- 96: Odd parity
-- 160: Mark parity
-- 224: Space parity
+**Baud selector table (control register bits 4-0):**
 
-**Control byte:**
-- Bits 0-3: Stop bits (shift left by 7)
-- Bits 4-7: Data bits (5-8)
+| Code (bits 4-0) | Baud rate |
+|-----------------|-----------|
+| 00000           | User-defined |
+| 00001           | 50 baud |
+| 00010           | 75 baud |
+| 00011           | 110 baud |
+| 00100           | 134.5 baud |
+| 00101           | 150 baud |
+| 00110           | 300 baud |
+| 00111           | 600 baud |
+| 01000           | 1200 baud |
+| 01001           | 1800 baud |
+| 01010           | 2400 baud |
+| 01011           | 3600 baud |
+| 01100           | 4800 baud |
+| 01101           | 7200 baud |
+| 01110           | 9600 baud |
+| 01111           | 19200 baud |
+
+(Any higher codes mirror the documented ones; refer to the Programmer's Reference Guide table for the exact mapping.)
 
 **Examples:**
 ```basic
 10 REM 1200 baud, no parity, 8 data bits, 1 stop
-20 OPEN 2,2,0,CHR$(7)+CHR$(8)
+20 OPEN 2,2,0,CHR$(7)+CHR$(0)
 30 PRINT#2,"DATA TO SEND"
 40 GET#2,A$: IF A$<>"" THEN PRINT A$
 50 CLOSE 2
@@ -190,7 +211,7 @@ Parameters: `CHR$(baud+parity) + CHR$(control)`
 
 ```basic
 10 REM 300 baud, even parity, 7 data bits, 2 stops
-20 OPEN 2,2,0,CHR$(38)+CHR$(135)
+20 OPEN 2,2,0,CHR$(38)+CHR$(96)
 ```
 
 ### RS-232 Zero-Page Buffers
@@ -198,6 +219,8 @@ Parameters: `CHR$(baud+parity) + CHR$(control)`
 Transmit buffer pointer: $F7-$F8  
 Receive buffer pointer: $F9-$FA  
 Default buffers: $0200 (transmit), $0300 (receive)
+
+Opening device 2 automatically allocates these two 256-byte buffers at the top of memory, issues a `CLR`, and stores their addresses in the LAT/FAT/SAT tables. If you open RS-232 after creating BASIC variables, the `CLR` can wipe them out, so always `OPEN 2,...` before defining large arrays or strings. `ST` holds the status of the most recent I/O operation, so test it immediately after each `GET#/INPUT#` (e.g., `IF ST AND 64 THEN ...` for receiver overflow or `ST AND 128` for timeouts) before another operation overwrites the flag bits (Mapping cap. 6).
 
 ## CIA Chips (Complex Interface Adapter)
 

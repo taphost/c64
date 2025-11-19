@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Commodore 64 has 64KB of addressable memory ($0000-$FFFF) with configurable banking that allows ROM/RAM switching. The 6510 processor port at $0001 controls memory configuration.
+The Commodore 64 has 64KB of addressable memory ($0000-$FFFF) with configurable banking that allows ROM/RAM switching. The 6510 processor port at $0001 controls memory configuration. This guide condenses the relevant chapters from both source texts: *Mapping the Commodore 64* (Ch. 1–7) and the *Commodore 64 Programmer's Reference Guide* (Appendices G/L and the “Memory Maps” chapter).
 
 **Key characteristics:**
 - 64KB RAM total
@@ -86,12 +86,28 @@ Fast-access 256-byte area. KERNAL/BASIC use most locations; user-safe areas are 
 
 **Warning:** Many zero-page locations are actively used during BASIC execution. For ML routines, prefer $FB-$FE or disable BASIC entirely.
 
+### 6510 processor port ($0000-$0001)
+
+Bit 0 (LORAM), Bit 1 (HIRAM) and Bit 2 (CHAREN) select which ROM banks are visible at $A000-$BFFF, $D000-$DFFF and $E000-$FFFF; clearing them swaps in RAM, character ROM or I/O. Bit 3-5 control cassette motor/data direction. $0000 is the companion data-direction register (DDR) for the port and determines which bits on $0001 act as inputs vs outputs. Use `POKE 1,PEEK(1) AND ...` to toggle ROM visibility without clobbering DDR.
+
+### User-safe reservable areas
+
+| Address | Size | Notes |
+|---------|------|-------|
+| $02 | 1 | Unused by system |
+| $FB-$FE | 4 | Rarely used by KERNAL; safe for ML |
+| $12-$13 | 2 | INDIRECT tables for user programs |
+| $FC-$FF | 4 | Reserved for keyboard scan vectors |
+
+The zero page is fast but crowded; restrict user data to $FB-$FE or disable BASIC to avoid stepping on system variables.
+
 ## Stack ($0100-$01FF)
 
 - Hardware stack: grows downward from $01FF
 - CPU operations: JSR pushes return address, RTS pops it
 - Default stack pointer: $FF (points to $01FF)
 - BASIC uses ~32 bytes; deep recursion can overflow
+- FOR/NEXT pushes 18 bytes per loop, GOSUB pushes 5 bytes, and BASIC monitores stack depth to avoid overflow; the conversion/data tables near $100-$13E store floating-point conversion helpers and the tape BAD log entries, so leave $0100-$01FF mostly untouched for stack growth (Mapping cap. 2).
 
 **Check stack depth:**
 ```basic
@@ -113,6 +129,12 @@ Fast-access 256-byte area. KERNAL/BASIC use most locations; user-safe areas are 
 | $0316-$0317 | 2 | BRK vector (CBINV) |
 | $0318-$0319 | 2 | NMI vector (NMINV) |
 | $033C-$03FB | 192 | Tape buffer |
+
+The logical file/device/secondary tables (LAT/FAT/SAT) are kept in parallel; when a device closes, entries above it slide down and location $0098 is decremented, while `CLALL` zeroes the count at $0098 and empties all three tables at once. The keyboard buffer count at $C5 and pointer at $C6 control how many characters are pending—`POKE 198,10` plus PETSCII in $027F-$0280 lets you fake user input.
+
+### RS-232 buffers ($F7-$FA)
+
+Opening device 2 allocates two 256-byte buffers at the top of memory and stores their addresses in $F7/$F8 (RIBUF) for input and $F9/$FA (ROBUF) for output. Each open writes its pointer to the LAT/FAT/SAT tables so the 512 bytes stay reserved until you close the channel; `ST` is cleared after every `GET#`/`INPUT#` read, so read `ST` immediately when you need to know if the buffer overflowed or a timeout occurred.
 
 ## Screen and Color Memory
 
@@ -220,7 +242,7 @@ See `SID.md` for complete SID register map.
 
 | Address Range | Size | Notes |
 |---------------|------|-------|
-| $C000-$CFFF | 4KB | Always RAM, never ROM |
+| $C000-$CFFF | 4KB | RAM shadow under BASIC/KERNAL; generally free but often used by wedges/cartridges—confirm before overwriting |
 | $CF00-$CFFF | 256 | Often used for ML routines |
 
 ### Available When ROM Banked Out
@@ -233,7 +255,7 @@ See `SID.md` for complete SID register map.
 ### Cassette Buffer ($033C-$03FB)
 
 - 192 bytes
-- Safe to use if not using tape drive
+- Safe to use only if the Datasette isn’t active
 - Common location for small ML routines
 
 **Example ML routine in cassette buffer:**

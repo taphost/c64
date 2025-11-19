@@ -17,7 +17,9 @@ C64LLM/
  ├── 6502.md           ← 6502/6510 CPU instruction set and ML programming
  └── docs/
       ├── c64prg.txt   ← Commodore 64 Programmer's Reference Guide (full text)
-      └── TOC.md       ← Quick index for c64prg.txt navigation
+      ├── mapping-c64.txt ← Project 64 etext of Mapping The Commodore 64 (memory map companion)
+      ├── TOC1.md      ← Quick index for c64prg.txt navigation
+      └── TOC2.md      ← Quick index for mapping-c64.txt navigation
 ```
 
 ## Purpose
@@ -134,9 +136,11 @@ LLMs have context-window limits. This modular approach:
 
 ## Documentation Source
 
-All content derives from the authoritative **Commodore 64 Programmer's Reference Guide**:
-- **docs/c64prg.txt**: Complete reference text
-- **docs/TOC.md**: Navigation index
+All content derives from Project 64 etexts:
+- **docs/c64prg.txt**: Commodore 64 Programmer's Reference Guide (complete reference text)
+- **docs/TOC1.md**: Navigation index for `c64prg.txt`
+- **docs/mapping-c64.txt**: Mapping The Commodore 64 (memory map companion)
+- **docs/TOC2.md**: Navigation index for `mapping-c64.txt`
 
 The modular guides extract, organize, and expand upon this foundation with:
 - Complete register/memory tables

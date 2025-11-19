@@ -4,8 +4,8 @@ Purpose: constrain code generation to C64 BASIC V2 (Microsoft BASIC 6502). Do no
 
 ## Overview
 
-- Support files for the C64 Programmer's Reference Guide (Project 64 etext).
-- Key references: `docs/c64prg.txt` (full etext), `docs/TOC.md` (contents).
+- Support files for the C64 Programmer's Reference Guide and the Mapping The Commodore 64 etexts (project 64) housed under `docs`.
+- Key references: `docs/c64prg.txt` + `docs/TOC1.md` for the main Programmer's Reference Guide, and `docs/mapping-c64.txt` + `docs/TOC2.md` for the memory map companion.
 - External references: `SID.md` (sound), `PETSCII.md` (character codes), `MEMORY.md` (memory map), `IO.md` (devices), `KERNAL.md` (OS routines), `VIC.md` (graphics), `6502.md` (CPU/ML).
 - Goal: give quick guidance to keep an LLM constrained to C64 BASIC V2 only.
 - Use full keywords (no keyboard abbreviations/shorthand tokens).
@@ -17,10 +17,11 @@ Allowlist (BASIC V2): `ABS AND ASC ATN CHR$ CLOSE CLR CMD CONT COS DATA DEF DIM 
 
 ## System variables (read-only in BASIC)
 
-- **`TI`** (or `TIME`): Timer in jiffies (1/60 sec NTSC, 1/50 PAL); read with `PRINT TI`; writable with `TI=0` to reset.
-- **`TI$`** (or `TIME$`): Timer as string "HHMMSS"; read-only; set via `TI=0` then wait.
-- **`ST`** (or `STATUS`): I/O status byte; read after I/O operations; 0=OK, nonzero=error/EOF.
-- **`DS$`**: Disk status string (device 8); read via `INPUT#15,A,B$,C,D:DS$=B$` after opening channel 15.
+- **`TI`** (or `TIME`): Timer in jiffies (1/60 sec NTSC, 1/50 PAL); read with `PRINT TI`. This counter is updated by the KERNAL and cannot be assigned directly.
+- **`TI$`** (or `TIME$`): Timer as string "HHMMSS"; you can both read it (`PRINT TI$`) and set it (e.g., `TI$="000000"`) to redefine the jiffy clock baseline.
+- **`ST`** (or `STATUS`): I/O status byte; read immediately after I/O operations; 0=OK, nonzero=error/EOF. Subsequent I/O calls overwrite `ST`, so capture it before performing more reads/writes.
+- **Disk status string**: Open channel 15 on the disk drive (`OPEN 15,8,15`) and read the status with `INPUT#15,EN,DS$,TR,SE`; `DS$` is an ordinary string variable that you populate from the error channel.
+- **I/O tables**: le posizioni 601-630 contengono le LAT/FAT/SAT (logical file/device/secondary) e 631-640 la coda tastiera; 198 riporta quanti caratteri sono in attesa e, se riempi i 10 slot con PETSCII e aggiorni 198, puoi simulare sequenze di tasti prima del prossimo `GET`/`INPUT` (Mapping cap. 3).
 
 ## Operators
 
@@ -54,9 +55,10 @@ Arithmetic: `+`, `-`, `*`, `/`, `^` (power). Relational: `=`, `<`, `>`, `<=`, `>
 - Files/channels: `OPEN <file#>,<device>[,<secondary>[,<command>]]`; use `PRINT#`, `INPUT#`, `GET#`, `CLOSE`.
 - Load/save: `LOAD "NAME",<device>[,1]` (,1=non-relocate); `SAVE "NAME",<device>` (append ,1 for end address); `VERIFY` with device.
 - Disk commands via channel 15: `OPEN 15,8,15:PRINT#15,"I":CLOSE 15` (initialize); `INPUT#15,A,B$,C,D` reads status (A=error code, B$=message).
-- Tape: `OPEN 1,1,1,"NAME"` (read), `OPEN 1,1,0,"NAME"` (write).
+- Tape: `OPEN 1,1,0,"NAME"` (read), `OPEN 1,1,1,"NAME"` (write), `OPEN 1,1,2,"NAME"` (write and append end-of-tape marker).
 - No high-level graphics/sound commands: use `POKE`/`SYS` against VIC-II/SID or KERNAL.
 - See `IO.md` for complete device details, disk DOS commands, CIA registers, joystick/paddle reading.
+- RS-232 channels (device 2) allocano automaticamente due buffer da 256 byte all’apertura, eseguono un `CLR` e liberano i loro slot all’atto del `CLOSE`; apri il canale PRIMA di definire variabili, leggi `RIBUF/ROBUF` ($F7/$F9) e ricorda che `ST` viene aggiornato a ogni operazione, quindi leggi il byte di stato subito dopo l’I/O che ti interessa (Mapping cap. 6). Per manipolare singoli flag usa la sequenza familiare di bit 1,2,4,8,16,32,64,128 via `POKE`/`PEEK`.
 
 ## Error handling
 
@@ -73,6 +75,11 @@ Arithmetic: `+`, `-`, `*`, `/`, `^` (power). Relational: `=`, `<`, `>`, `<=`, `>
 - String/memory quirks: string heap separate from numeric vars; `MID$/LEFT$/RIGHT$` allocate new strings (no in-place); heavy concatenation can fragment memory; `FRE(0)` can be negative—add 65536 if needed.
 - Limits: strings max 255 chars; program text starts at $0801 by default; logical line length limit ~2 KB (editor shows 80 columns).
 - Keep logical lines within ~80 characters if possible; use `:` to split but beware editability on real C64 when exceeding the 80-column editor view.
+
+### Memory layout reminders
+- Zero page ($0000-$00FF) è la zona più veloce: la porta 6510 in $0000/$0001 controlla i bit LORAM/HIRAM/CHAREN (più cassette) per selezionare ROM o RAM, mentre $02-$8F sono occupati da BASIC e $FB-$FE rimangono liberi per routines ML rapide (Mapping cap. 1).
+- Lo stack hardware ($0100-$01FF) serve a FOR/NEXT (18 byte), GOSUB (5 byte), IRQ e conversioni floating-point; i blocchi $100-$10A e $100-$13E sono riservati a conversioni e tape BAD log, quindi monitora sempre il limite 256 per evitare overflow/underflow (Mapping cap. 2).
+- Screen RAM predefinita (1024-2047) contiene la matrice video e gli 8 puntatori sprite (2040-2047); il VIC bank select in $D018 decide la location effettiva, color RAM a $D800 è indipendente e non aumenta `FRE(0)` (Mapping cap. 4).
 
 ## Usage
 
@@ -96,6 +103,39 @@ Arithmetic: `+`, `-`, `*`, `/`, `^` (power). Relational: `=`, `<`, `>`, `<=`, `>
 - Position cursor: `POKE 781,Y:POKE 782,X:SYS 65520` (X=col 0–39, Y=row 0–24). `SYS 65520` is KERNAL PLOT.
 - Screen memory: default text at $0400 (1024), 40×25; color RAM at $D800. Character at `1024+Y*40+X` shows screen code (not PETSCII); color at `55296+Y*40+X`.
 - Simple blink using editor cursor: place at center and let editor blink; or toggle a char with space using `TI` for timing.
+
+## Commodore shortcut table
+
+| Key | SHIFT shortcut | Commodore logo shortcut |
+|-----|----------------|--------------------------|
+| A | PRINT | PRINT# |
+| B | AND | OR |
+| C | CHR$ | ASC |
+| D | READ | DATA |
+| E | GET | END |
+| F | FOR | NEXT |
+| G | GOSUB | RETURN |
+| H | TO | STEP |
+| I | INPUT | INPUT# |
+| J | GOTO | ON |
+| K | DIM | RESTORE |
+| L | LOAD | SAVE |
+| M | MID$ | LEN |
+| N | INT | RND |
+| O | OPEN | CLOSE |
+| P | POKE | PEEK |
+| Q | TAB( | SPC( |
+| R | RIGHT$ | LEFT$ |
+| S | STR$ | VAL |
+| T | IF | THEN |
+| U | TAN | SQR |
+| V | VERIFY | CMD |
+| W | DEF | FN |
+| X | LIST | FRE |
+| Y | SIN | COS |
+| Z | RUN | SYS |
+
+Consult Mapping Appendix A/B if you need to reproduce these shortcut key sequences as part of a macro or tutorial.
 
 ## Essential CHR$ codes (PETSCII)
 
@@ -142,10 +182,10 @@ Complete memory map in `MEMORY.md`. Key locations:
 - VIC-II registers: $D000–$D02E (sprite/screen control). See `VIC.md`.
 - SID registers: $D400–$D418 (sound). See `SID.md`.
 - CIA1 at $DC00 (keyboard/joysticks/timers), CIA2 at $DD00 (serial, VIC bank select). See `IO.md`.
-- Memory banking via $0001 (processor port): controls ROM/RAM visibility. See `MEMORY.md`.
+- Memory banking via $0001 (processor port): bit 0=LORAM (BASIC ROM), bit 1=HIRAM (Kernal ROM), bit 2=CHAREN (I/O vs char ROM), bits 3-5 handle cassette/direction. Use `POKE 1,PEEK(1) AND ...` to swap banks without losing workspace (Mapping cap. 1, `MEMORY.md`).
 - Screen: $0400–$07FF (default, 1000 bytes). Color RAM: $D800–$DBE7 (1000 bytes, fixed location).
 - Zero page: $00–$FF (fast access, mostly system reserved). See `MEMORY.md` for safe locations.
-- Safe RAM for ML: $C000–$CFFF (4KB always available), cassette buffer $033C–$03FB (192 bytes).
+- Safe RAM for ML: $C000–$CFFF (4KB generalmente libero ma spesso usato da wedge/cartridge—verifica prima di sovrascrivere) e il buffer cassetta $033C–$03FB (192 byte) se la Datassette non è in uso.
 
 ## KERNAL routine anchors (via SYS)
 
@@ -237,4 +277,3 @@ See `6502.md` for instruction set, addressing modes, registers, code patterns, c
 
 **Complete C64 BASIC V2 reference suite:**  
 `API.md` (this file) + `SID.md` + `PETSCII.md` + `MEMORY.md` + `IO.md` + `KERNAL.md` + `VIC.md` + `6502.md`
-
