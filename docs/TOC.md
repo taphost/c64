@@ -1,6 +1,6 @@
 # Commodore 64 Programmer's Reference Guide (etext) – API Summary
 
-Reference: `../C64/c64prg.txt` (Project 64 etext of the C64 Programmer's Reference Guide, ~1983 first edition).
+Reference: `../docs/c64prg.txt` (Project 64 etext of the C64 Programmer's Reference Guide, ~1983 first edition).
 
 ## 1. Overview of the C64 & BASIC V2
 - Hardware tour, memory layout basics, power‑up behavior, and built‑in ROMs.  
